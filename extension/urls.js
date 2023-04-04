@@ -57,10 +57,10 @@ var tasks = [
     // 12 minutes
     type: 'cycle',
     name: 'audio',
-    start: minutes(2),
-    duration: minutes(1),
-    delay: seconds(30), //minutes(12),
-    timeout: seconds(3),
+    start: minutes(36),
+    duration: minutes(12),
+    delay: minutes(12),
+    timeout: seconds(30),
     focus: false,
     urls: [RADIO_AUDIO_URL, RADIO_AUDIO_URL],
   },
@@ -68,10 +68,10 @@ var tasks = [
     // After 48 minutes, play with Google Docs for 6 minutes
     type: 'cycle',
     name: 'docs',
-    start: minutes(3),
-    duration: minutes(1),//minutes(6),
-    delay: seconds(30),//minutes(1), // A minute on each page
-    timeout: seconds(3),
+    start: minutes(48),
+    duration: minutes(6),
+    delay: minutes(1), // A minute on each page
+    timeout: seconds(30),
     focus: true,
     urls: [
        ViewGDoc + '1ywpQGu18T9e2lB_QVMlihDqiF0V5hsYkhlXCfu9B8jY',
@@ -82,8 +82,8 @@ var tasks = [
     // After 54 minutes, watch Big Buck Bunny for 6 minutes
     type: 'window',
     name: 'video',
-    start: minutes(5),
-    duration: seconds(10),
+    start: minutes(54),
+    duration: minutes(6),
     focus: true,
     tabs: [
         'https://www.youtube.com/embed/YE7VzlLtp-4?start=236&vq=hd720&autoplay=1'
