@@ -1,15 +1,21 @@
 // Copyright 2010 The ChromiumOS Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+
 // List of tasks to accomplish
 var URLS = new Array();
+
 var ViewGDoc = ('https://docs.google.com/document/d/');
+
 var RADIO_AUDIO_URL = 'https://storage.googleapis.com/chromiumos-test-assets-public/power_LoadTest/long_rain.mp3'
+
 var PLAY_MUSIC_URL = 'https://play.google.com/music/listen?u=0#/wst/st/a2be2d85-0ac9-3a7a-b038-e221bb63ef71';
+
 function isMP3DecoderPresent() {
     return window['MediaSource'] &&
       window['MediaSource'].isTypeSupported('audio/mpeg');
 }
+
 var tasks = [
   {
     // Chrome browser window 1. This window remains open for the entire test.
@@ -90,6 +96,8 @@ var tasks = [
     ]
   },
 ];
+
+
 // Updated April 15, 2019.
 // 50 entries are determined by taking the top 50 websites from Alexa rankings,
 // https://www.alexa.com/topsites/countries/US.
@@ -150,6 +158,7 @@ URLS[u_index++] = 'https://www.msn.com';
 URLS[u_index++] = 'https://www.indeed.com/l-Mountain-View-jobs.html';
 URLS[u_index++] = 'https://duckduckgo.com/?q=google';
 URLS[u_index++] = 'https://www.accuweather.com';
+
 // Updated March 16, 2023.
 // For PLT 1.1, use web caching tasks to reduce the variances from PLT.
 // See go/repeatability-in-power-tests.
