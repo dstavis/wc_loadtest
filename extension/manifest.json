@@ -1,4 +1,5 @@
 {
+  "key": "MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQD69MHTFB90q+MCBlimEUDAwv9aAUS5Utkfs8YNSJein64VxlZKNFSCO501ork0MB92uH02Ic5CzwGkfAucdaj/KBM0vg7HJINZUzKYJjBXgaeOO00WCT29VilNdKyEkXLSHGuK9gIK/i72FNEldHJJ6JvWSvXUbZyBP4ZaxQsgtwIDAQAB",
   "manifest_version": 2,
   "name": "WC Power Test",
   "version": "0.2",
@@ -9,7 +10,7 @@
   "icons": { "48": "skin/wcatter.png",
           "128": "skin/wcatter.png" },
   "permissions": [
-    "webRequest", "http://*/", "https://*/", "tabs"
+    "webRequest", "http://*/", "https://*/", "tabs", "processes"
   ],
   "background": {
     "persistent": true,
