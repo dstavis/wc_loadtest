@@ -10,14 +10,17 @@ var log_lines = [];
 var error_codes = {}; //for each active tabId
 var page_timestamps = [];
 var page_timestamps_recorder = {};
-var unique_url_salt = 1;
+var unique_url_salt = 1; // Missing from latest chromium build; kept in case it matters to Kevin's code
 
 var loop_hours = 20; // Kevin's variable to loop 20 hours
+
+var keys_values = [];
 
 function setupTest() {
   //adding these listeners to track request failure codes
   chrome.webRequest.onCompleted.addListener(capture_completed_status,
                                             {urls: ["<all_urls>"]});
+  task_monitor.bind();
   chrome.windows.getAll(null, function(windows) {
     preexisting_windows = windows;
     for (var i = 0; i < tasks.length; i++) {
@@ -27,10 +30,53 @@ function setupTest() {
     log_lines = [];
     page_timestamps = [];
     page_timestamps_recorder = {};
+    keys_values = [];
     record_log_entry(dateToString(new Date()) + " Loop started");
     setTimeout(send_summary, end);
   });
 }
+
+// This function closes tabs except for the first tab if there are more than 1
+// tab on the window. If there are no window, `chrome.windows.create()`
+// restores the tabs from the previous session. Currently this behaviour is
+// not observed on Ash due to a bug b/269545815.
+function close_restored_tabs(win, callback) {
+  chrome.tabs.query({windowId: win.id}, (tabs) => {
+    if (chrome.runtime.lastError) {
+      console.error(
+        "close_restored_tabs: chrome.tabs.query resulted in an error: "
+        + chrome.runtime.lastError);
+      // If there is an error, return without calling the callback.
+      return;
+    }
+
+    if (tabs.length < 2) {
+      callback();
+      return;
+    }
+
+    let tabIds = [];
+    for (let i = 1; i < tabs.length; i++) {
+      tabIds.push(tabs[i].id);
+    }
+
+    // Note that the one tab that will remain after other tabs are removed will
+    // be navigated to a url specified by the task so it does not matter what
+    // tab remains. The only important thing here is that there is only one
+    // tab on the window.
+    chrome.tabs.remove(tabIds, () => {
+      if (chrome.runtime.lastError) {
+        console.error(
+          "close_restored_tabs: chrome.tabs.remove resulted in an error: "
+          + chrome.runtime.lastError);
+        return;
+      }
+
+      callback();
+    });
+  })
+}
+
 
 function close_preexisting_windows() {
   for (var i = 0; i < preexisting_windows.length; i++) {
@@ -93,7 +139,7 @@ function cycle_navigate(cycle) {
   cycle_tabs[cycle.id] = cycle;
   var url = cycle.urls[cycle.idx];
   // Resetting the error codes.
-  // TODO(coconutruben) Verify if reseeting here might give us
+  // TODO(coconutruben) Verify if resetting here might give us
   // garbage data since some requests/responses might still come
   // in before we update the tab, but we'll register them as
   // information about the subsequent url
@@ -150,51 +196,58 @@ function cycle_check_timeout(cycle) {
 
 function launch_task(task) {
   if (task.type == 'window' && task.tabs) {
-    chrome.windows.create({'url': '/focus.html'}, function (win) {
+    chrome.windows.create(
+      {'url': '/focus.html', state: 'maximized'}, function (win) {
       close_preexisting_windows();
-      chrome.tabs.getSelected(win.id, function(tab) {
-        for (var i = 1; i < task.tabs.length; i++) {
-          chrome.tabs.create({'windowId':win.id, 'url': '/focus.html'});
-        }
-        chrome.tabs.getAllInWindow(win.id, function(tabs) {
-          for (var i = 0; i < tabs.length; i++) {
-            tab = tabs[i];
-            url = task.tabs[i];
-            start = Date.now();
-            page_timestamps_new_record(tab.id, url, start);
-            chrome.tabs.update(tab.id, {'url': url, 'selected': true});
+      
+      close_restored_tabs(win, function() {
+        chrome.tabs.getSelected(win.id, function(tab) {
+          for (var i = 1; i < task.tabs.length; i++) {
+            chrome.tabs.create({'windowId':win.id, 'url': '/focus.html'});
           }
-          console.log(JSON.stringify(page_timestamps_recorder));
+          chrome.tabs.getAllInWindow(win.id, function(tabs) {
+            for (var i = 0; i < tabs.length; i++) {
+              tab = tabs[i];
+              url = task.tabs[i];
+              start = Date.now();
+              page_timestamps_new_record(tab.id, url, start);
+              chrome.tabs.update(tab.id, {'url': url, 'selected': true});
+            }
+            console.log(JSON.stringify(page_timestamps_recorder));
+          });
+          setTimeout(function(win_id) {
+            record_end_browse_time_for_window(win_id);
+            chrome.windows.remove(win_id);
+          }, (task.duration / time_ratio), win.id);
         });
-        setTimeout(function(win_id) {
-          record_end_browse_time_for_window(win_id);
-          chrome.windows.remove(win_id);
-        }, task.duration / time_ratio, win.id);
       });
     });
   } else if (task.type == 'cycle' && task.urls) {
-    chrome.windows.create({'url': '/focus.html'}, function (win) {
+    chrome.windows.create(
+      {'url': '/focus.html', state: 'maximized'}, function (win) {
       close_preexisting_windows();
-      chrome.tabs.getSelected(win.id, function(tab) {
-        var cycle = {
-           'timeout': task.timeout,
-           'name': task.name,
-           'delay': task.delay,
-           'urls': task.urls,
-           'id': tab.id,
-           'idx': 0,
-           'timer': null,
-           'focus': !!task.focus,
-           'successful_loads': 0,
-           'failed_loads': 0
-        };
-        cycles[task.name] = cycle;
-        cycle_navigate(cycle);
-        setTimeout(function(cycle, win_id) {
-          clearTimeout(cycle.timer);
-          record_end_browse_time_for_window(win_id);
-          chrome.windows.remove(win_id);
-        }, task.duration / time_ratio, cycle, win.id);
+      close_restored_tabs(win, function() {
+        chrome.tabs.getSelected(win.id, function(tab) {
+          var cycle = {
+             'timeout': task.timeout,
+             'name': task.name,
+             'delay': task.delay,
+             'urls': task.urls,
+             'id': tab.id,
+             'idx': 0,
+             'timer': null,
+             'focus': !!task.focus,
+             'successful_loads': 0,
+             'failed_loads': 0
+          };
+          cycles[task.name] = cycle;
+          cycle_navigate(cycle);
+          setTimeout(function(cycle, win_id) {
+            clearTimeout(cycle.timer);
+            record_end_browse_time_for_window(win_id);
+            chrome.windows.remove(win_id);
+          }, task.duration / time_ratio, cycle, win.id);
+        });
       });
     });
   }
@@ -232,25 +285,22 @@ function record_log_entry(entry) {
   log_lines.push(entry);
 }
 
+function record_key_values(dictionary) {
+  keys_values.push(dictionary);
+}
+
 function send_log_entries() {
   var post = [];
-  log_lines.forEach(function (item, index, array) {
+  log_lines.forEach(function (item, index) {
     var entry = encodeURIComponent(item);
-    post.push('url'+ index + '=' + entry);
+    post.push('log'+ index + '=' + entry);
   });
 
   var log_url = 'http://localhost:8001/log';
-  //  TODO(coconutruben): code-snippet below is shared
-  //  across record_log_entry and send_keyvals. Consider
-  //  pull into helper if we use more urls.
-  var req = new XMLHttpRequest();
-  req.open('POST', log_url, true);
-  req.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
-  req.send(post.join("&"));
-  console.log(post.join("&"));
+  send_post_data(post, log_url)
 }
 
-function send_keyvals() {
+function send_status() {
   var post = ["status=good"];
 
   for (var name in cycles) {
@@ -258,37 +308,46 @@ function send_keyvals() {
     post.push(name + "_successful_loads=" + cycle.successful_loads);
     post.push(name + "_failed_loads=" + cycle.failed_loads);
   }
-  chrome.power.requestKeepAwake('display');
+  // chrome.power.requestKeepAwake('display'); <-- chromium deleted this line, but I wonder if it's important for WC's purposes. I'll leave it commented out so we can put it back in if removing it causes problems.
   chrome.runtime.onMessage.removeListener(testListener);
 
   var status_url = 'http://localhost:8001/status';
-  var req = new XMLHttpRequest();
-  req.open('POST', status_url, true);
-  req.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
-  req.send(post.join("&"));
-  console.log(post.join("&"));
+  send_post_data(post, status_url)
 }
 
 function send_raw_page_time_info() {
   var post = [];
-  page_timestamps.forEach(function (item) {
-    var unique_url = (unique_url_salt++) + item.url;
-    var key = encodeURIComponent(unique_url);
-    post.push(key + "=" + JSON.stringify(item));
+  page_timestamps.forEach(function (item, index) {
+    post.push('page_time_data'+ index + "=" + JSON.stringify(item));
   })
 
   var pagetime_info_url = 'http://localhost:8001/pagetime';
+  send_post_data(post, pagetime_info_url)
+}
+
+function send_key_values() {
+  var post = [];
+  keys_values.forEach(function (item, index) {
+    post.push("keyval" + index + "=" + JSON.stringify(item));
+  })
+  var key_values_info_url = 'http://localhost:8001/keyvalues';
+  send_post_data(post, key_values_info_url)
+}
+
+function send_post_data(post, url) {
   var req = new XMLHttpRequest();
-  req.open('POST', pagetime_info_url, true);
+  req.open('POST', url, true);
   req.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
   req.send(post.join("&"));
   console.log(post.join("&"));
 }
 
 function send_summary() {
-  send_log_entries();
   send_raw_page_time_info();
-  send_keyvals();
+  task_monitor.unbind();
+  send_key_values();
+  send_status();
+  send_log_entries();
 }
 
 function startTest() {
