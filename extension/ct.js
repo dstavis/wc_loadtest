@@ -14,6 +14,25 @@ function report_scrolling_to_test() {
   req.send("");
 }
 
+chrome.runtime.onMessage.addListener(
+  function(message, sender, callback) {
+    if (message == "numberOfVideosPlaying") {
+      callback(numberOfVideosPlaying());
+    }
+});
+
+function numberOfVideosPlaying() {
+  let number_of_videos_playing = 0;
+  for (let video of document.querySelectorAll('video')) {
+    if (!video.paused) {
+      number_of_videos_playing++;
+    }
+  }
+
+  return number_of_videos_playing;
+}
+
+
 //Sends message to the test.js(background script). test.js on
 //receiving a message from content script assumes the page has
 //loaded successfully. It further responds with instructions on
@@ -23,7 +42,7 @@ function sendSuccessToBGScript() {
     if (response && response.should_scroll) {
       window.focus();
       lastOffset = window.pageYOffset;
-      var start_interval = Math.max(10000, response.scroll_interval);
+      var start_interval = Math.max(1000, response.scroll_interval);
       function smoothScrollDown() {
         report_scrolling_to_test();
         window.scrollBy(0, response.scroll_by);
