@@ -20,10 +20,9 @@ function setupTest() {
   //adding these listeners to track request failure codes
   chrome.webRequest.onCompleted.addListener(capture_completed_status,
                                             {urls: ["<all_urls>"]});
-  task_monitor.bind();
   chrome.windows.getAll(null, function(windows) {
     preexisting_windows = windows;
-    for (var i = 0; i < tasks.length; i++) {
+    for (var i = 0; i < tasks.length; i++) { //where does this "tasks" variable get defined?! it doesn't happen in this file- the only reference to this variable is right here in this for loop
       setTimeout(launch_task, tasks[i].start / time_ratio, tasks[i]);
     }
     var end = 3600 * 1000 / time_ratio;

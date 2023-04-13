@@ -10,7 +10,7 @@
   "icons": { "48": "skin/wcatter.png",
           "128": "skin/wcatter.png" },
   "permissions": [
-    "webRequest", "http://*/", "https://*/", "tabs", "processes"
+    "webRequest", "http://*/", "https://*/", "tabs"
   ],
   "background": {
     "persistent": true,
