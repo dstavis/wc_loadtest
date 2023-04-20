@@ -10,7 +10,7 @@ var log_lines = [];
 var error_codes = {}; //for each active tabId
 var page_timestamps = [];
 var page_timestamps_recorder = {};
-
+var unique_url_salt = 1;
 var loop_hours = 20; // Kevin's variable to loop 20 hours
 
 var keys_values = [];
