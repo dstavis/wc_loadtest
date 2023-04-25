@@ -10,7 +10,6 @@ var log_lines = [];
 var error_codes = {}; //for each active tabId
 var page_timestamps = [];
 var page_timestamps_recorder = {};
-var unique_url_salt = 1; // Missing from latest chromium build; kept in case it matters to Kevin's code
 
 var loop_hours = 20; // Kevin's variable to loop 20 hours
 
@@ -22,7 +21,7 @@ function setupTest() {
                                             {urls: ["<all_urls>"]});
   chrome.windows.getAll(null, function(windows) {
     preexisting_windows = windows;
-    for (var i = 0; i < tasks.length; i++) { //where does this "tasks" variable get defined?! it doesn't happen in this file- the only reference to this variable is right here in this for loop
+    for (var i = 0; i < tasks.length; i++) { 
       setTimeout(launch_task, tasks[i].start / time_ratio, tasks[i]);
     }
     var end = 3600 * 1000 / time_ratio;
@@ -33,6 +32,13 @@ function setupTest() {
     record_log_entry(dateToString(new Date()) + " Loop started");
     setTimeout(send_summary, end);
   });
+}
+
+function close_preexisting_windows() {
+  for (var i = 0; i < preexisting_windows.length; i++) {
+    chrome.windows.remove(preexisting_windows[i].id);
+  }
+  preexisting_windows.length = 0;
 }
 
 // This function closes tabs except for the first tab if there are more than 1
@@ -74,14 +80,6 @@ function close_restored_tabs(win, callback) {
       callback();
     });
   })
-}
-
-
-function close_preexisting_windows() {
-  for (var i = 0; i < preexisting_windows.length; i++) {
-    chrome.windows.remove(preexisting_windows[i].id);
-  }
-  preexisting_windows.length = 0;
 }
 
 function get_active_url(cycle) {
@@ -343,7 +341,6 @@ function send_post_data(post, url) {
 
 function send_summary() {
   send_raw_page_time_info();
-  task_monitor.unbind();
   send_key_values();
   send_status();
   send_log_entries();
